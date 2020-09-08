@@ -10,7 +10,55 @@ Telegram: +7(939)303-38-40
 
 * В корне проекта выполнить ```composer install```.
 * Указать в config/db.php корректные данные для авторизации в базе данных (в разработке использовалась СУБД PostgreSQL).
-* Восстановить базу данных со схемами с помощью файла 'db_copy.sql' (копия делалась способом, описанным здесь: https://nicolaswidart.com/blog/duplicate-a-postgresql-schema, можно восстановить как написано там же в разделе 3, или просто набрать в терминале в корне директории ```psql -U username -d database_name -f db_copy.sql```). 
+* Восстановить базу данных со схемами с помощью файла 'db_copy.sql' (копия делалась способом, описанным здесь: https://nicolaswidart.com/blog/duplicate-a-postgresql-schema, можно восстановить как написано там же в разделе 3, или просто набрать в терминале в корне директории ```psql -U username -d database_name -f db_copy.sql```).  
+ИЛИ  
+Создать в желаемой базе данных требуемые таблицы, выполнив следующие команды:
+* * Таблица graph для хранения графов:
+```
+CREATE TABLE public.graph (
+    name character varying(20) NOT NULL,
+    CONSTRAINT name_length CHECK ((char_length((name)::text) >= 6))
+);
+
+ALTER TABLE ONLY public.graph
+    ADD CONSTRAINT graph_pkey PRIMARY KEY (name);
+```
+* * Таблица vertex для хранения вершин:
+```
+CREATE TABLE public.vertex (
+    graph_name character varying(20) NOT NULL,
+    id smallint NOT NULL,
+    CONSTRAINT positive_id CHECK ((id > 0))
+);
+
+ALTER TABLE ONLY public.vertex
+    ADD CONSTRAINT vertex_pkey PRIMARY KEY (graph_name, id);
+    
+ALTER TABLE ONLY public.vertex
+    ADD CONSTRAINT vertex_graph_name_fkey FOREIGN KEY (graph_name) REFERENCES public.graph(name) ON DELETE CASCADE;
+```
+* * Таблица edge для хранения рёбер:  
+```
+CREATE TABLE public.edge (
+    graph_name character varying(20) NOT NULL,
+    start_vertex_id smallint NOT NULL,
+    end_vertex_id smallint NOT NULL,
+    weight integer NOT NULL,
+    CONSTRAINT positive_end_id CHECK ((end_vertex_id > 0)),
+    CONSTRAINT positive_start_id CHECK ((start_vertex_id > 0)),
+    CONSTRAINT positive_weight CHECK ((weight > 0))
+);
+
+ALTER TABLE ONLY public.edge
+    ADD CONSTRAINT edge_pkey PRIMARY KEY (graph_name, start_vertex_id, end_vertex_id);
+    
+ALTER TABLE ONLY public.edge
+    ADD CONSTRAINT edge_graph_name_fkey FOREIGN KEY (graph_name, start_vertex_id) REFERENCES public.vertex(graph_name, id) ON DELETE CASCADE;
+    
+ALTER TABLE ONLY public.edge
+    ADD CONSTRAINT edge_graph_name_fkey1 FOREIGN KEY (graph_name, end_vertex_id) REFERENCES public.vertex(graph_name, id) ON DELETE CASCADE;
+```
+
 * Указать корневой директорией веб-сервера директорию 'web' данного проекта.
 
 ## Первая часть: REST API
